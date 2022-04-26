@@ -8,13 +8,16 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtGui import QPainter 
 from PyQt5.QtGui import QPen
+from PyQt5.QtGui import QColor
 
 PAD=20
 
 selectedNodes = []
+edges = []
 
 class QtNode(QWidget):
     def __init__(self, x, y, parent=None):
+        self.myParent = parent
         self.isSelected = False
         QWidget.__init__(self, parent)
         self.move(x, y)
@@ -59,16 +62,19 @@ class QtNode(QWidget):
                     border-radius:25px;
                 """)
         self.update()
-    
+
     def mouseDoubleClickEvent(self, event):
+        for i in reversed(range(len(edges))):
+            edge = edges[i]
+            if self == edge[0] or self == edge[1]:
+                edges.pop(i)
         self.setParent(None)
-        self.deleteLater()
+        self.myParent.update()
 
 class GraphWindow(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
         self.setContentsMargins(0,0,0,0)
-        self.edges = []
         self.WIDTH = 1080
         self.HEIGHT = 720
         self.setStyleSheet("""
@@ -80,11 +86,12 @@ class GraphWindow(QWidget):
     def paintEvent(self, e):
         painter = QPainter()
         painter.begin(self)
+        painter.eraseRect(e.rect())
         pen = QPen()
         pen.setWidth(3)
         painter.setPen(pen)
-        for edge in self.edges:
-            painter.drawLine(edge[0].x() + PAD, edge[0].y() + PAD,edge[1].x() + PAD, edge[1].y() + PAD )
+        for edge in edges:
+            painter.drawLine(edge[0].pos().x() + PAD, edge[0].pos().y() + PAD,edge[1].pos().x() + PAD, edge[1].pos().y() + PAD )
 
     def mouseDoubleClickEvent(self, event):
         newNode = QtNode(event.pos().x(), event.pos().y(), self)
@@ -96,7 +103,7 @@ class GraphWindow(QWidget):
             self.addEdge(selectedNodes[0], selectedNodes[1])
 
     def addEdge(self, parent, successor):
-        self.edges.append([parent.pos(), successor.pos()])
+        edges.append([parent, successor])
         self.update()
 
 def main():
