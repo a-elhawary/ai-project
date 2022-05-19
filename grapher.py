@@ -21,13 +21,13 @@ nodeCount=0
 
 class QtNode(QWidget):
     def __init__(self, x, y, parent=None):
+        QWidget.__init__(self, parent)
         global nodeCount
         nodeCount+=1
         self.name = str(nodeCount)
         self.heuristic=None
         self.myParent = parent
         self.isSelected = False
-        QWidget.__init__(self, parent)
         self.move(x, y)
         self.setContentsMargins(0,0,0,0)
         self.setStyleSheet("""
@@ -37,7 +37,7 @@ class QtNode(QWidget):
             margin:0;
             border-radius:25px;
         """)
-        layout = QHBoxLayout()
+        layout = QVBoxLayout()
         label = QLabel(self.name)
         label.resize(50,50)
         layout.addWidget(label)
@@ -57,6 +57,8 @@ class QtNode(QWidget):
             margin:0;
             border-radius:25px;
         """)
+        if len(selectedNodes) < 2:
+            self.myParent.hideCreateEdgeButton()
     
     def mousePressEvent(self, event):
         if self.isSelected:
@@ -72,6 +74,8 @@ class QtNode(QWidget):
                     margin:0;
                     border-radius:25px;
                 """)
+                if len(selectedNodes) == 2:
+                    self.myParent.showCreateEdgeButton()
         self.update()
 
     def mouseDoubleClickEvent(self, event):
@@ -99,6 +103,29 @@ class GraphWindow(QWidget):
             background-color:#fff; 
             margin:0
         """)
+        self.createEdge = QPushButton(self)
+        self.createEdge.clicked.connect(self.onCreateEdgeClick)
+        self.createEdge.move(10, 10)
+        self.createEdge.setText("Create Edge")
+        self.createEdge.setStyleSheet("""
+            border:none; 
+            background-color:#23292e; 
+            color:#fff;
+            padding:10px 15px;
+            border-radius:4px;
+        """)
+        self.createEdge.hide()
+
+    def onCreateEdgeClick(self):
+        self.addEdge(selectedNodes[0], selectedNodes[1])
+        selectedNodes[0].unSelect()
+        selectedNodes[0].unSelect()
+    
+    def hideCreateEdgeButton(self):
+        self.createEdge.hide()
+    
+    def showCreateEdgeButton(self):
+        self.createEdge.show()
 
     def paintEvent(self, e):
         painter = QPainter()
@@ -109,7 +136,7 @@ class GraphWindow(QWidget):
         painter.setPen(pen)
         for edge in edges:
             painter.drawLine(edge[0].pos().x() + PAD, edge[0].pos().y() + PAD,edge[1].pos().x() + PAD, edge[1].pos().y() + PAD )
-
+        
     def mouseMoveEvent(self, event):
         if self.movingNode == None:
             for node in self.nodes:
@@ -122,7 +149,6 @@ class GraphWindow(QWidget):
             self.update()
         
     def mouseReleaseEvent(self, event):
-        print("released")
         self.movingNode = None
 
     def mouseDoubleClickEvent(self, event):
@@ -209,15 +235,6 @@ class myApplication(QWidget):
     def start(self):
         print(self.graphWindow.getGraph())
         print(self.algoComb.currentText())
-
-    def keyPressEvent(self,e):
-        # pressed on e key
-        if e.key() == 69 and len(selectedNodes) == 2:
-            self.graphWindow.addEdge(selectedNodes[0], selectedNodes[1])
-            selectedNodes[0].unSelect()
-            # previous unselect poped element at index 0
-            # so the next element became index of 0
-            selectedNodes[0].unSelect()
 
 def main():
     app = QApplication(sys.argv)
