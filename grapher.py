@@ -1,5 +1,6 @@
 import sys
 
+# GUI Imports
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QLabel
@@ -12,6 +13,13 @@ from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtGui import QPainter 
 from PyQt5.QtGui import QPen
 from PyQt5.QtGui import QColor
+
+# Algorithm imports
+from a_star import a_star
+from greedy import greedy
+from iterative import iterative
+from ufc import ucs
+from uninformed import dfs,bfs
 
 PAD=20
 
@@ -28,20 +36,46 @@ class QtNode(QWidget):
         self.heuristic=None
         self.myParent = parent
         self.isSelected = False
-        self.move(x, y)
+        self.setGeometry(x,y,120,120)
         self.setContentsMargins(0,0,0,0)
-        self.setStyleSheet("""
-            color:#000; 
-            border:1px solid black;
-            padding:25px;
-            margin:0;
-            border-radius:25px;
+        self.node = QWidget(self)
+        self.node.setObjectName("node")
+        self.node.setGeometry(0,0,120,120)
+        self.node.setStyleSheet("""
+            QWidget#node{
+                border:1px solid black;
+                border-radius:60px;
+            } 
+            QWidget{
+                background-color:#fff;
+                color:#000;
+            }
         """)
-        layout = QVBoxLayout()
+        self.node.setContentsMargins(10,10,10,10)
+        vLayout = QVBoxLayout()
         label = QLabel(self.name)
-        label.resize(50,50)
-        layout.addWidget(label)
-        self.setLayout(layout)
+        label.setStyleSheet("""
+            margin-left:28px; 
+        """)
+        vLayout.addWidget(label)
+        inputRow = QWidget()
+        hLayout = QHBoxLayout()
+        hLayout.addWidget(QLabel("h= "))
+        self.heuristicInput= QLineEdit()
+        self.heuristicInput.textChanged.connect(self.setHeuristic)
+        hLayout.addWidget(self.heuristicInput)
+        inputRow.setLayout(hLayout)
+        vLayout.addWidget(inputRow)
+        self.node.setLayout(vLayout)
+
+    def setHeuristic(self, event):
+        value = self.heuristicInput.text()
+        if len(value) == 0:
+            return 
+        if not (value[-1] >= "0" and value[-1] <= "9"):
+            self.heuristicInput.backspace()
+            return
+        self.myParent.changeHeuristic(self.name, int(value))
 
     def unSelect(self):
         self.isSelected = False
@@ -50,12 +84,15 @@ class QtNode(QWidget):
             if node == self:
                 selectedNodes.pop(i)
             i+=1
-        self.setStyleSheet("""
-            color:#000; 
-            border:1px solid black;
-            padding:25px;
-            margin:0;
-            border-radius:25px;
+        self.node.setStyleSheet("""
+            QWidget#node{
+                border:1px solid black;
+                border-radius:60px;
+            } 
+            QWidget{
+                background-color:#fff;
+                color:#000;
+            }
         """)
         if len(selectedNodes) < 2:
             self.myParent.hideCreateEdgeButton()
@@ -67,12 +104,15 @@ class QtNode(QWidget):
             if len(selectedNodes) < 2:
                 self.isSelected = True
                 selectedNodes.append(self)
-                self.setStyleSheet("""
-                    color:#000; 
-                    border:1px solid green;
-                    padding:25px;
-                    margin:0;
-                    border-radius:25px;
+                self.node.setStyleSheet("""
+                    QWidget#node{
+                        border:1px solid green;
+                        border-radius:60px;
+                    } 
+                    QWidget{
+                        background-color:#fff;
+                        color:#000;
+                    }
                 """)
                 if len(selectedNodes) == 2:
                     self.myParent.showCreateEdgeButton()
@@ -83,6 +123,9 @@ class QtNode(QWidget):
             edge = edges[i]
             if self == edge[0] or self == edge[1]:
                 self.myParent.removeEdgeFromGraph(edge[0], edge[1])
+                if len(edge) > 2:
+                    edge[2].setParent(None)
+                    edge[2].deleteLater()
                 edges.pop(i)
         for i in reversed(range(len(selectedNodes))):
             if selectedNodes[i] == self:
@@ -128,6 +171,11 @@ class GraphWindow(QWidget):
         self.createEdge.show()
 
     def paintEvent(self, e):
+        for edge in edges:
+            if len(edge) >= 3:
+                xMid = (edge[0].pos().x() + edge[1].pos().x())/ 2
+                yMid = (edge[0].pos().y() + edge[1].pos().y())/ 2
+                edge[2].move(int(xMid), int(yMid))
         painter = QPainter()
         painter.begin(self)
         painter.eraseRect(e.rect())
@@ -136,7 +184,7 @@ class GraphWindow(QWidget):
         painter.setPen(pen)
         for edge in edges:
             painter.drawLine(edge[0].pos().x() + PAD, edge[0].pos().y() + PAD,edge[1].pos().x() + PAD, edge[1].pos().y() + PAD )
-        
+    
     def mouseMoveEvent(self, event):
         if self.movingNode == None:
             for node in self.nodes:
@@ -159,15 +207,60 @@ class GraphWindow(QWidget):
 
     def addEdge(self, parent, successor):
         edges.append([parent, successor])
+        self.createEdgeLabel(edges[-1])
         temp = list(self.graph[parent.name])
-        temp[1] += [successor.name]
+        temp[1] += [(0, successor.name)]
         self.graph[parent.name] = tuple(temp)
         temp = list(self.graph[successor.name])
-        temp[1] += [parent.name]
+        temp[1] += [(0, parent.name)]
         self.graph[successor.name] = tuple(temp)
         self.update()
         if parent is not None:
             parent.update()
+    
+    def createEdgeLabel(self, edge):
+        xMid = (edge[0].pos().x() + edge[1].pos().x())/ 2
+        yMid = (edge[0].pos().y() + edge[1].pos().y())/ 2
+        edgeEdit = QLineEdit(self)
+        edgeEdit.setStyleSheet("""
+            color:#000;
+            border:1px solid #222;
+            border-radius:4px;
+            width:40px;
+        """)
+        edgeEdit.move(int(xMid), int(yMid))
+        edgeEdit.textChanged.connect(lambda event: self.updateCost(event, edge))
+        edgeEdit.show()
+        edge.append(edgeEdit)
+    
+    def updateCost(self, event, edge):
+        nxt = self.graph[edge[0].name][1]
+        for i in range(len(nxt)):
+            node = nxt[i]
+            if node[1] == edge[1].name:
+                x = list(node)
+                x[0] = int(event)
+                nxt[i] = tuple(x)
+                break
+        x = list(self.graph[edge[0].name])
+        x[1] = nxt
+        self.graph[edge[0].name] = tuple(x)
+        nxt = list(self.graph[edge[1].name][1])
+        for i in range(len(nxt)):
+            node = nxt[i]
+            if node[1] == edge[0].name:
+                x = list(node)
+                x[0] = int(event)
+                nxt[i] = tuple(x)
+                break
+        x = list(self.graph[edge[1].name])
+        x[1] = nxt
+        self.graph[edge[1].name] = tuple(x)
+
+    def changeHeuristic(self, node, heuristic):
+        x = list(self.graph[node])
+        x[0] = heuristic
+        self.graph[node] = tuple(x)
 
     def getGraph(self):
         return self.graph
@@ -210,7 +303,7 @@ class myApplication(QWidget):
         hLayout = QHBoxLayout() 
         hLayout.addWidget(QLabel("AI - Search"), 1)
         self.algoComb = QComboBox()
-        self.algoComb.addItems(["Depth First", "Breadth First", "Uniform Cost", "Greedy", "A*"])
+        self.algoComb.addItems(["Depth First", "Breadth First", "Uniform Cost", "Greedy", "A*", "Iterative"])
         self.algoComb.setStyleSheet("""
             background-color:#fff;
             color:#000;
@@ -233,8 +326,30 @@ class myApplication(QWidget):
         self.show()
 
     def start(self):
-        print(self.graphWindow.getGraph())
-        print(self.algoComb.currentText())
+        graph = self.graphWindow.getGraph()
+        algo = self.algoComb.currentText()
+        if len(selectedNodes) != 1:
+            #TODO:error msg to usr
+            return  
+        goal = []
+        for key in graph:
+            if graph[key][0] == 0:
+                goal += [key]
+        if len(goal) == 0:
+            #TODO:error msg to usr
+            return
+        if algo == "Depth First":
+            print(dfs(graph, selectedNodes[0].name, goal))
+        elif algo == "Breadth First":
+            print(bfs(graph, selectedNodes[0].name, goal))
+        elif algo == "Uniform Cost":
+            print(ucs(graph, selectedNodes[0].name, goal))
+        elif algo == "Greedy":
+            print(greedy(graph, selectedNodes[0].name, goal))
+        elif algo == "A*":
+            print(a_star(graph, selectedNodes[0].name, goal))
+        elif algo == "Iterative":
+            print(iterative(graph, selectedNodes[0].name, goal))
 
 def main():
     app = QApplication(sys.argv)
