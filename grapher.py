@@ -47,7 +47,7 @@ class QtNode(QWidget):
                 border-radius:60px;
             } 
             QWidget{
-                background-color:#fff;
+                background-color:#f7f7f7;
                 color:#000;
             }
         """)
@@ -90,7 +90,7 @@ class QtNode(QWidget):
                 border-radius:60px;
             } 
             QWidget{
-                background-color:#fff;
+                background-color:#f7f7f7;
                 color:#000;
             }
         """)
@@ -110,7 +110,7 @@ class QtNode(QWidget):
                         border-radius:60px;
                     } 
                     QWidget{
-                        background-color:#fff;
+                        background-color:#f7f7f7;
                         color:#000;
                     }
                 """)
