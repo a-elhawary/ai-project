@@ -454,12 +454,13 @@ class myApplication(QWidget):
         if(self.algoComb.currentText() == "Iterative"):
             if(self.iterativeCount >= len(self.visited)):
                 for node in self.path:
-                    self.graphWindow.changeNodeColor(node,"#ff0000")
+                    self.graphWindow.changeNodeColor(node,"b32434")
                 return
             if(self.stepCount >= len(self.visited[self.iterativeCount])):
-                self.graphWindow.resetNodesColor()
                 self.stepCount = 0
                 self.iterativeCount+=1
+                if(self.iterativeCount < len(self.visited)):
+                    self.graphWindow.resetNodesColor()
                 return 
             nodeName = self.visited[self.iterativeCount][self.stepCount]
             visitedFringe = self.visited[self.iterativeCount][0:self.stepCount]
