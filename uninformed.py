@@ -35,7 +35,7 @@ def dfs(graph, start, goal):  # function for dfs
             continue
         if minNode in goal:
             visited.append(minNode)
-            return visited, path
+            return visited, minPath
         else:
             visited.append(minNode)
             nextNodes = graph[minNode][1]
@@ -45,11 +45,12 @@ def dfs(graph, start, goal):  # function for dfs
 
 if __name__ == '__main__':
     graph = {
-        '5': (0, [(0, '3'),(0,'7')]),
-        '3': (0, [(0, '2'),(0,'4')]),
-        '7': (0, [(0, '8')]),
-        '2': (0, []),
-        '4': (0, [(0, '8')]),
-        '8': (0, [])
+        '1': (0, [(0, '2'),(0,'3')]),
+        '2': (0, [(0, '4'),(0,'5')]),
+        '3': (0, [(0, '6'),(0,'7')]),
+        '4': (0, []),
+        '5': (0, []),
+        '6': (0, []),
+        '7': (0, [])
     }
-    print(dfs(graph, '5', ['4']))
+    print(dfs(graph, '1', ['6']))

@@ -20,7 +20,7 @@ def ucs( graph, start, goal):
             continue
         if minNode in goal:
             visited.append(minNode)
-            return visited,path
+            return visited,minPath
         else:
             visited.append(minNode)
             nextNodes = graph[minNode][1]

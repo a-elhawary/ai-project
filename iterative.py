@@ -26,7 +26,7 @@ def depthLimited(graph, start, goal, limit):  # function for dfs
             break
         if minNode in goal:
             visited.append(minNode)
-            return visited, path
+            return visited, minPath
         else:
             visited.append(minNode)
             nextNodes = graph[minNode][1]
