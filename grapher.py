@@ -199,7 +199,7 @@ class GraphWindow(QWidget):
     def resetNodesColor(self):
         for node in self.nodes:
             node.changeColor("f7f7f7")
-
+        
     def paintEvent(self, e):
         for edge in edges:
             if len(edge) >= 3:
@@ -347,7 +347,8 @@ class myApplication(QWidget):
         QWidget.__init__(self,parent)
         self.iterativeCount = 0
         self.stepCount = 0
-        self.visitedNodes = []
+        self.visited = []
+        self.path = []
         self.errorBox = QMessageBox()
         self.errorBox.setIcon(QMessageBox.Critical)
         self.graphWindow = GraphWindow()
@@ -435,23 +436,25 @@ class myApplication(QWidget):
             return
         self.stepButton.show()
         if algo == "Depth First":
-            self.visited = dfs(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = dfs(graph, selectedNodes[0].name, goal)
         elif algo == "Breadth First":
-            self.visited = bfs(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = bfs(graph, selectedNodes[0].name, goal)
         elif algo == "Uniform Cost":
-            self.visited = ucs(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = ucs(graph, selectedNodes[0].name, goal)
         elif algo == "Greedy":
-            self.visited = greedy(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = greedy(graph, selectedNodes[0].name, goal)
         elif algo == "A*":
-            self.visited = a_star(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = a_star(graph, selectedNodes[0].name, goal)
         elif algo == "Iterative":
-            self.visited = iterative(graph, selectedNodes[0].name, goal)
+            self.visited, self.path = iterative(graph, selectedNodes[0].name, goal)
         self.startButton.clicked.connect(self.stop)
         self.startButton.setText("Stop")
         
     def step(self):
         if(self.algoComb.currentText() == "Iterative"):
             if(self.iterativeCount >= len(self.visited)):
+                for node in self.path:
+                    self.graphWindow.changeNodeColor(node,"#ff0000")
                 return
             if(self.stepCount >= len(self.visited[self.iterativeCount])):
                 self.graphWindow.resetNodesColor()
@@ -462,6 +465,8 @@ class myApplication(QWidget):
             visitedFringe = self.visited[self.iterativeCount][0:self.stepCount]
         else:
             if(self.stepCount >= len(self.visited)):
+                for node in self.path:
+                    self.graphWindow.changeNodeColor(node,"b32434")
                 return 
             nodeName = self.visited[self.stepCount]
             visitedFringe = self.visited[0:self.stepCount]

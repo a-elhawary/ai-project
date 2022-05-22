@@ -1,29 +1,31 @@
 def ucs( graph, start, goal):
     visited = []
-    queue = [[start,0]]
+    queue = [[start,0, [start]]]
     while len(queue) > 0:
         newQueue = []
         min = 99999
         minNode = None
+        minPath = []
         while queue:
-            (node,cost) = queue.pop(0)
+            (node,cost, path) = queue.pop(0)
             if cost < min:
-                newQueue.append((minNode, min))
+                newQueue.append((minNode, min, minPath))
                 min = cost
                 minNode = node
+                minPath = path
             else:
-                newQueue.append((node,cost))
+                newQueue.append((node,cost, path))
         queue = newQueue
         if minNode in visited:
             continue
         if minNode in goal:
             visited.append(minNode)
-            return visited
+            return visited,path
         else:
             visited.append(minNode)
             nextNodes = graph[minNode][1]
             for (cost,node) in nextNodes:
-                queue.append((node, cost + min))
+                queue.append((node, cost + min, minPath + [node]))
 
 
 if __name__ == '__main__':
@@ -35,5 +37,4 @@ if __name__ == '__main__':
         'D': (0,[(5,'G')]),
         'G': (0,[])
     }
-    solution = ucs(graph,'S',['G', 'D'])
-    print('Solution is ', solution)
+    print(ucs(graph,'S',['G']))
