@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtGui import QPainter 
 from PyQt5.QtGui import QPen
+from PyQt5.QtGui import QBrush
 from PyQt5.QtGui import QColor
 
 # Algorithm imports
@@ -33,6 +34,7 @@ class QtNode(QWidget):
         QWidget.__init__(self, parent)
         global nodeCount
         nodeCount+=1
+        self.color = None
         self.name = str(nodeCount)
         self.heuristic=None
         self.myParent = parent
@@ -97,7 +99,24 @@ class QtNode(QWidget):
         """)
         if len(selectedNodes) < 2:
             self.myParent.hideCreateEdgeButton()
-    
+
+    def changeColor(self,color):
+        borderColor = ""
+        if self.isSelected:
+            borderColor = "green"
+        else:
+            borderColor = "black"
+        self.node.setStyleSheet(f"""
+            QWidget#node{{
+                border:1px solid {borderColor};
+                border-radius:60px;
+            }} 
+            QWidget{{
+                background-color:#{color};
+                color:#000;
+            }}
+        """)
+
     def mousePressEvent(self, event):
         if self.isSelected:
             self.unSelect()
@@ -139,6 +158,7 @@ class QtNode(QWidget):
 class GraphWindow(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
+        self.isUndirected = True
         self.nodes = []
         self.movingNode = None
         self.graph = {}
@@ -170,6 +190,15 @@ class GraphWindow(QWidget):
     
     def showCreateEdgeButton(self):
         self.createEdge.show()
+    
+    def changeNodeColor(self, nodeName, color):
+        for node in self.nodes:
+            if node.name == nodeName:
+                node.changeColor(color)
+            
+    def resetNodesColor(self):
+        for node in self.nodes:
+            node.changeColor("f7f7f7")
 
     def paintEvent(self, e):
         for edge in edges:
@@ -185,6 +214,11 @@ class GraphWindow(QWidget):
         painter.setPen(pen)
         for edge in edges:
             painter.drawLine(edge[0].pos().x() + PAD, edge[0].pos().y() + PAD,edge[1].pos().x() + PAD, edge[1].pos().y() + PAD )
+            if not self.isUndirected:
+                x = edge[1].pos().x()
+                y = edge[1].pos().y()
+                painter.setBrush(QBrush(QtCore.Qt.black, QtCore.Qt.SolidPattern))
+                painter.drawEllipse(x + 10, y + 10, 10, 10)
     
     def mouseMoveEvent(self, event):
         if self.movingNode == None:
@@ -212,9 +246,10 @@ class GraphWindow(QWidget):
         temp = list(self.graph[parent.name])
         temp[1] += [(0, successor.name)]
         self.graph[parent.name] = tuple(temp)
-        temp = list(self.graph[successor.name])
-        temp[1] += [(0, parent.name)]
-        self.graph[successor.name] = tuple(temp)
+        if self.isUndirected:
+            temp = list(self.graph[successor.name])
+            temp[1] += [(0, parent.name)]
+            self.graph[successor.name] = tuple(temp)
         self.update()
         if parent is not None:
             parent.update()
@@ -235,6 +270,8 @@ class GraphWindow(QWidget):
         edge.append(edgeEdit)
     
     def updateCost(self, event, edge):
+        if event == "":
+            event = '0'
         nxt = self.graph[edge[0].name][1]
         for i in range(len(nxt)):
             node = nxt[i]
@@ -266,6 +303,28 @@ class GraphWindow(QWidget):
     def getGraph(self):
         return self.graph
 
+    def setDirection(self, isUndirected):
+        self.isUndirected = isUndirected
+        for edge in edges:
+            if isUndirected:
+                temp = list(self.graph[edge[1].name])
+                parentGraph = self.graph[edge[0].name][1]
+                newCost = 0
+                for pEdge in parentGraph:
+                    if pEdge[1] == edge[1].name:
+                        newCost = pEdge[0]
+                        break
+                temp[1] += [(newCost, edge[0].name)]
+                self.graph[edge[1].name] = tuple(temp)
+            else:
+                temp = list(self.graph[edge[1].name])
+                for i in reversed(range(len(temp[1]))):
+                    node = temp[1][i]
+                    if node[1] == edge[0].name:
+                        temp[1].pop(i)
+                self.graph[edge[1].name] = tuple(temp)
+        self.update()
+
     def removeEdgeFromGraph(self, parent, succesor):
         x = list(self.graph[parent.name])
         for i in range(len(x[1])):
@@ -286,6 +345,9 @@ class GraphWindow(QWidget):
 class myApplication(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self,parent)
+        self.iterativeCount = 0
+        self.stepCount = 0
+        self.visitedNodes = []
         self.errorBox = QMessageBox()
         self.errorBox.setIcon(QMessageBox.Critical)
         self.graphWindow = GraphWindow()
@@ -313,20 +375,48 @@ class myApplication(QWidget):
             border:none;
         """)
         hLayout.addWidget(self.algoComb)
-        startButton = QPushButton("Start")
-        startButton.setStyleSheet("""
+        self.startButton = QPushButton("Start")
+        self.startButton.setStyleSheet("""
             background-color:#23292e; 
             border-radius:2px;
             padding:10px 15px;
             margin:0;
         """)
-        startButton.clicked.connect(self.start)
-        hLayout.addWidget(startButton)
+        self.startButton.clicked.connect(self.start)
+        self.stepButton = QPushButton("Step")
+        self.stepButton.setStyleSheet("""
+            background-color:#23292e; 
+            border-radius:2px;
+            padding:10px 15px;
+            margin:0;
+        """)
+        self.stepButton.hide()
+        self.stepButton.clicked.connect(self.step)
+        self.directionButton = QPushButton("Undirected")
+        self.directionButton.setStyleSheet("""
+            background-color:#23292e; 
+            border-radius:2px;
+            padding:10px 15px;
+            margin:0;
+        """)
+        self.directionButton.clicked.connect(self.toggleDirection)
+        hLayout.addWidget(self.directionButton)
+        hLayout.addWidget(self.stepButton)
+        hLayout.addWidget(self.startButton)
         topBar.setLayout(hLayout)
         vLayout.addWidget(topBar,1)
         vLayout.addWidget(self.graphWindow,10)
         self.setLayout(vLayout)
         self.show()
+    
+    def stop(self):
+        self.visited = []
+        self.graphWindow.resetNodesColor()
+        self.stepButton.hide()
+        self.startButton.clicked.connect(self.start)
+        self.startButton.setText("Start")
+        self.stepCount = 0
+        self.iterativeCount = 0
 
     def start(self):
         graph = self.graphWindow.getGraph()
@@ -343,18 +433,53 @@ class myApplication(QWidget):
             self.errorBox.setText("<html>Must Select at least one goal node before running algorithm<br/><br/> Select a goal node by setting it's heuristic to 0<html>")
             self.errorBox.exec_()
             return
+        self.stepButton.show()
         if algo == "Depth First":
-            print(dfs(graph, selectedNodes[0].name, goal))
+            self.visited = dfs(graph, selectedNodes[0].name, goal)
         elif algo == "Breadth First":
-            print(bfs(graph, selectedNodes[0].name, goal))
+            self.visited = bfs(graph, selectedNodes[0].name, goal)
         elif algo == "Uniform Cost":
-            print(ucs(graph, selectedNodes[0].name, goal))
+            self.visited = ucs(graph, selectedNodes[0].name, goal)
         elif algo == "Greedy":
-            print(greedy(graph, selectedNodes[0].name, goal))
+            self.visited = greedy(graph, selectedNodes[0].name, goal)
         elif algo == "A*":
-            print(a_star(graph, selectedNodes[0].name, goal))
+            self.visited = a_star(graph, selectedNodes[0].name, goal)
         elif algo == "Iterative":
-            print(iterative(graph, selectedNodes[0].name, goal))
+            self.visited = iterative(graph, selectedNodes[0].name, goal)
+        self.startButton.clicked.connect(self.stop)
+        self.startButton.setText("Stop")
+        
+    def step(self):
+        if(self.algoComb.currentText() == "Iterative"):
+            if(self.iterativeCount >= len(self.visited)):
+                return
+            if(self.stepCount >= len(self.visited[self.iterativeCount])):
+                self.graphWindow.resetNodesColor()
+                self.stepCount = 0
+                self.iterativeCount+=1
+                return 
+            nodeName = self.visited[self.iterativeCount][self.stepCount]
+            visitedFringe = self.visited[self.iterativeCount][0:self.stepCount]
+        else:
+            if(self.stepCount >= len(self.visited)):
+                return 
+            nodeName = self.visited[self.stepCount]
+            visitedFringe = self.visited[0:self.stepCount]
+        graph = self.graphWindow.getGraph()
+        fringeTuple = graph[nodeName][1]
+        for node in fringeTuple:
+            if node[1] not in visitedFringe:
+                self.graphWindow.changeNodeColor(node[1], "ebeba4")
+        self.graphWindow.changeNodeColor(nodeName, "89b579")
+        self.stepCount+=1
+ 
+    def toggleDirection(self):
+        if self.directionButton.text() == "Undirected":
+            self.graphWindow.setDirection(False)
+            self.directionButton.setText("Directed")
+        else:
+            self.graphWindow.setDirection(True)
+            self.directionButton.setText("Undirected")
 
 def main():
     app = QApplication(sys.argv)

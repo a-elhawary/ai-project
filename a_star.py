@@ -21,9 +21,7 @@ def a_star( graph, start, goal):
             continue
         if minNode in goal:
             visited.append(minNode)
-            print("goal reached")
-            print(visited)
-            return minNode
+            return visited
         else:
             visited.append(minNode)
             nextNodes = graph[minNode][1]
@@ -41,4 +39,3 @@ if __name__ == '__main__':
         'G': (0,[])
     }
     solution = a_star(graph, 'S', 'G')
-    print('Solution is ', solution)
