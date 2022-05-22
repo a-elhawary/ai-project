@@ -9,6 +9,7 @@ from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtWidgets import QHBoxLayout
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QWidget
+from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtGui import QPainter 
 from PyQt5.QtGui import QPen
@@ -285,6 +286,8 @@ class GraphWindow(QWidget):
 class myApplication(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self,parent)
+        self.errorBox = QMessageBox()
+        self.errorBox.setIcon(QMessageBox.Critical)
         self.graphWindow = GraphWindow()
         self.setGeometry(100,100,1080,720)
         self.setContentsMargins(0,0,0,0)
@@ -329,14 +332,16 @@ class myApplication(QWidget):
         graph = self.graphWindow.getGraph()
         algo = self.algoComb.currentText()
         if len(selectedNodes) != 1:
-            #TODO:error msg to usr
+            self.errorBox.setText("<html>Must Select exactly one starting node before running algorithm<br/><br/> Select a node by clicking on it<html>")
+            self.errorBox.exec_()
             return  
         goal = []
         for key in graph:
             if graph[key][0] == 0:
                 goal += [key]
         if len(goal) == 0:
-            #TODO:error msg to usr
+            self.errorBox.setText("<html>Must Select at least one goal node before running algorithm<br/><br/> Select a goal node by setting it's heuristic to 0<html>")
+            self.errorBox.exec_()
             return
         if algo == "Depth First":
             print(dfs(graph, selectedNodes[0].name, goal))
